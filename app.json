@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "PiFiApp",
-    "slug": "PiFiApp",
+    "name": "PiFi – Your AI Financial Coach",
+    "slug": "pifi-your-ai-financial-coach",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -14,18 +14,15 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "app.rork.pifi-your-ai-financial-coach"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
-    },
-    "web": {
-      "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      },
+      "package": "app.rork.pifi-your-ai-financial-coach"
     },
     "plugins": [
       "expo-router"
