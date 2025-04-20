@@ -1,5 +1,5 @@
 # Python venv
-.venv/
+venv/
 __pycache__/
 
 # Expo / RN
@@ -12,3 +12,4 @@ build/
 
 # Env files
 .env
+
