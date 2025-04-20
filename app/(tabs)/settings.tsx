@@ -7,6 +7,7 @@ import {
   Switch, 
   TouchableOpacity,
   Alert,
+  ImageBackground,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -33,7 +34,6 @@ export default function SettingsScreen() {
   const { sessions, clearMessages } = useChatStore();
   
   const [notifications, setNotifications] = useState(true);
-  const [darkMode, setDarkMode] = useState(theme === 'dark');
   
   const handleToggleDarkMode = (value: boolean) => {
     setDarkMode(value);
@@ -91,12 +91,24 @@ export default function SettingsScreen() {
   const formattedExperienceLevel = experienceLevel.charAt(0).toUpperCase() + experienceLevel.slice(1);
 
   return (
+    <ImageBackground 
+        source={require('@/assets/images/image.png')} 
+        style={styles.backgroundImage}
+      >
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+
+<Text style={[styles.subtitle, { color: 'white' }]}>
+              Control Center
+              </Text>
+              <Text style={[styles.subtitleSmall, { color: 'gray' }]}>
+               All your preferences in one place
+              </Text>
+
         <View style={styles.profileSection}>
           <View style={styles.profileImageContainer}>
             <User size={32} color={colors.white} />
@@ -118,20 +130,8 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Preferences</Text>
           
           <Card style={styles.settingsCard}>
-            <View style={styles.settingItem}>
-              <View style={styles.settingLabelContainer}>
-                <Moon size={20} color={colors.text} />
-                <Text style={styles.settingLabel}>Dark Mode</Text>
-              </View>
-              <Switch
-                value={darkMode}
-                onValueChange={handleToggleDarkMode}
-                trackColor={{ false: colors.gray[300], true: colors.primary }}
-                thumbColor={colors.white}
-              />
-            </View>
+           
             
-            <View style={styles.divider} />
             
             <View style={styles.settingItem}>
               <View style={styles.settingLabelContainer}>
@@ -183,7 +183,7 @@ export default function SettingsScreen() {
           <Card style={styles.settingsCard}>
             <TouchableOpacity style={styles.settingButton}>
               <View style={styles.settingLabelContainer}>
-                <HelpCircle size={20} color={colors.text} />
+                <HelpCircle size={20} />
                 <Text style={styles.settingLabel}>Help Center</Text>
               </View>
               <ChevronRight size={20} color={colors.gray[400]} />
@@ -206,13 +206,34 @@ export default function SettingsScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  subtitle: {
+    marginTop: 80,
+    fontSize: 29,
+    color: 'white',
+    bottom: 20,
+    fontWeight: '500',
+
+  },
+  subtitleSmall: {
+    marginTop: 10,
+    color: 'gray',
+    bottom: 20,
+  },
+
+  backgroundImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
   scrollView: {
     flex: 1,
@@ -223,9 +244,9 @@ const styles = StyleSheet.create({
   profileSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    padding: 10,
+    top: 5,
+    
   },
   profileImageContainer: {
     width: 60,
@@ -234,7 +255,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+    marginRight: 12,
   },
   profileInfo: {
     flex: 1,
@@ -247,29 +268,31 @@ const styles = StyleSheet.create({
   },
   profileLevel: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: 'gray',
   },
   editButton: {
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 16,
-    backgroundColor: colors.gray[100],
+    backgroundColor: colors.gray[50],
   },
   editButtonText: {
     fontSize: 14,
-    color: colors.text,
+    color: 'colors.text',
     fontWeight: '500',
   },
   section: {
-    padding: 20,
+    padding: 5,
   },
   sectionTitle: {
+    top: 10,
     fontSize: 18,
     fontWeight: '600',
-    color: colors.text,
-    marginBottom: 16,
+    color: 'gray',
+    marginBottom: 25,
   },
   settingsCard: {
+    color: 'gray',
     padding: 0,
   },
   settingItem: {
@@ -282,7 +305,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    padding: 12,
   },
   settingLabelContainer: {
     flexDirection: 'row',
@@ -302,7 +325,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   versionText: {
-    fontSize: 14,
+    fontSize: 12,
     color: colors.gray[500],
   },
 });

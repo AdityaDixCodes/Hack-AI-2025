@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   View, 
   Text, 
@@ -6,6 +6,8 @@ import {
   ScrollView, 
   Animated,
   TouchableOpacity,
+  ImageBackground,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/constants/colors';
@@ -22,6 +24,25 @@ import {
 } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useChatStore } from '@/store/chat-store';
+import { LinearGradient } from 'expo-linear-gradient';
+
+// Animation utilities
+const createShimmerAnimation = (value) => {
+  Animated.loop(
+    Animated.sequence([
+      Animated.timing(value, {
+        toValue: 1,
+        duration: 1500,
+        useNativeDriver: true,
+      }),
+      Animated.timing(value, {
+        toValue: 0,
+        duration: 1500,
+        useNativeDriver: true,
+      }),
+    ])
+  ).start();
+};
 
 export default function InsightsScreen() {
   const { sessions, createSession } = useChatStore();
@@ -30,27 +51,40 @@ export default function InsightsScreen() {
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
+  
+  // State for card interactions
+  const [activeCard, setActiveCard] = useState(null);
   
   useEffect(() => {
     // Start animations
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 600,
+        duration: 800,
         useNativeDriver: true,
       }),
       Animated.timing(slideAnim, {
         toValue: 0,
-        duration: 600,
+        duration: 800,
         useNativeDriver: true,
       }),
     ]).start();
+    
+    // Start shimmer effect
+    createShimmerAnimation(shimmerAnim);
   }, []);
   
   const handleStartLearning = () => {
     const sessionId = createSession();
     router.push(`/chat/${sessionId}`);
   };
+  
+  // Shimmer effect interpolation
+  const shimmerTranslate = shimmerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-100, 300]
+  });
   
   if (!hasSessions) {
     return (
@@ -67,6 +101,10 @@ export default function InsightsScreen() {
   }
 
   return (
+    <ImageBackground 
+        source={require('@/assets/images/image.png')} 
+        style={styles.backgroundImage}
+    >
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView 
         style={styles.scrollView}
@@ -79,8 +117,11 @@ export default function InsightsScreen() {
             { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
           ]}
         >
-          <Text style={styles.subtitle}>
-            Personalized insights based on your financial conversations
+          <Text style={[styles.subtitle, { color: 'white' }]}>
+              Finance at a Glance
+          </Text>
+          <Text style={[styles.subtitleSmall, { color: 'gray' }]}>
+              Quick insights to keep you on track
           </Text>
         </Animated.View>
         
@@ -93,29 +134,92 @@ export default function InsightsScreen() {
           <Text style={styles.sectionTitle}>Key Metrics</Text>
           
           <View style={styles.metricsContainer}>
-            <Card style={styles.metricCard}>
-              <View style={[styles.iconContainer, { backgroundColor: colors.primaryLight + '30' }]}>
-                <TrendingUp size={20} color={colors.primary} />
-              </View>
-              <Text style={styles.metricValue}>+12.4%</Text>
-              <Text style={styles.metricLabel}>Revenue Growth</Text>
-            </Card>
+            <TouchableOpacity 
+              activeOpacity={0.8} 
+              onPressIn={() => setActiveCard('revenue')}
+              onPressOut={() => setActiveCard(null)}
+            >
+              <Animated.View style={[
+                { transform: [{ scale: activeCard === 'revenue' ? 1.05 : 1 }] }
+              ]}>
+                <LinearGradient
+                  colors={['#212121', '#1a237e', '#303f9f']}
+                  start={{x: 0, y: 0}}
+                  end={{x: 1, y: 1}}
+                  style={styles.metricGradientCard}
+                >
+                  <View style={[styles.iconContainer, { backgroundColor: 'rgba(66, 133, 244, 0.2)' }]}>
+                    <TrendingUp size={20} color="#4285F4" />
+                  </View>
+                  <Text style={styles.metricValueEnhanced}>+12.4%</Text>
+                  <Text style={styles.metricLabelEnhanced}>Revenue Growth</Text>
+                  
+                  {/* Shimmer effect */}
+                  <Animated.View style={[
+                    styles.shimmerEffect,
+                    { transform: [{ translateX: shimmerTranslate }] }
+                  ]} />
+                </LinearGradient>
+              </Animated.View>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              activeOpacity={0.8} 
+              onPressIn={() => setActiveCard('profit')}
+              onPressOut={() => setActiveCard(null)}
+            >
+              <Animated.View style={[
+                { transform: [{ scale: activeCard === 'profit' ? 1.05 : 1 }] }
+              ]}>
+                <LinearGradient
+                  colors={['#212121', '#263238', '#37474F']}
+                  start={{x: 0, y: 0}}
+                  end={{x: 1, y: 1}}
+                  style={styles.metricGradientCard}
+                >
+                  <View style={[styles.iconContainer, { backgroundColor: 'rgba(103, 58, 183, 0.2)' }]}>
+                    <Percent size={20} color="#673AB7" />
+                  </View>
+                  <Text style={styles.metricValueEnhanced}>18.2%</Text>
+                  <Text style={styles.metricLabelEnhanced}>Profit Margin</Text>
+                  
+                  {/* Shimmer effect */}
+                  <Animated.View style={[
+                    styles.shimmerEffect,
+                    { transform: [{ translateX: shimmerTranslate }] }
+                  ]} />
+                </LinearGradient>
+              </Animated.View>
+            </TouchableOpacity>
             
-            <Card style={styles.metricCard}>
-              <View style={[styles.iconContainer, { backgroundColor: colors.secondaryLight + '30' }]}>
-                <Percent size={20} color={colors.secondary} />
-              </View>
-              <Text style={styles.metricValue}>18.2%</Text>
-              <Text style={styles.metricLabel}>Profit Margin</Text>
-            </Card>
-            
-            <Card style={styles.metricCard}>
-              <View style={[styles.iconContainer, { backgroundColor: colors.primaryLight + '30' }]}>
-                <DollarSign size={20} color={colors.primary} />
-              </View>
-              <Text style={styles.metricValue}>$2.4M</Text>
-              <Text style={styles.metricLabel}>Cash Flow</Text>
-            </Card>
+            <TouchableOpacity 
+              activeOpacity={0.8} 
+              onPressIn={() => setActiveCard('cashflow')}
+              onPressOut={() => setActiveCard(null)}
+            >
+              <Animated.View style={[
+                { transform: [{ scale: activeCard === 'cashflow' ? 1.05 : 1 }] }
+              ]}>
+                <LinearGradient
+                  colors={['#212121', '#0D47A1', '#1976D2']}
+                  start={{x: 0, y: 0}}
+                  end={{x: 1, y: 1}}
+                  style={styles.metricGradientCard}
+                >
+                  <View style={[styles.iconContainer, { backgroundColor: 'rgba(0, 188, 212, 0.2)' }]}>
+                    <DollarSign size={20} color="#00BCD4" />
+                  </View>
+                  <Text style={styles.metricValueEnhanced}>$2.4M</Text>
+                  <Text style={styles.metricLabelEnhanced}>Cash Flow</Text>
+                  
+                  {/* Shimmer effect */}
+                  <Animated.View style={[
+                    styles.shimmerEffect,
+                    { transform: [{ translateX: shimmerTranslate }] }
+                  ]} />
+                </LinearGradient>
+              </Animated.View>
+            </TouchableOpacity>
           </View>
         </Animated.View>
         
@@ -132,29 +236,49 @@ export default function InsightsScreen() {
               </TouchableOpacity>
             </View>
             
-            <Card style={styles.chartCard}>
-              <View style={styles.chartPlaceholder}>
-                <PieChart size={120} color={colors.primary} />
-                <Text style={styles.chartPlaceholderText}>
+            <LinearGradient
+              colors={['#212121', '#1A2026', '#151B21']}
+              style={styles.enhancedChartCard}
+              start={{x: 0, y: 0}}
+              end={{x: 1, y: 1}}
+            >
+              <View style={styles.chartPlaceholderEnhanced}>
+                <PieChart size={120} color="#4285F4" />
+                <Text style={styles.chartPlaceholderTextEnhanced}>
                   Interactive charts will appear here based on your financial data
                 </Text>
               </View>
               
-              <View style={styles.legendContainer}>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendColor, { backgroundColor: colors.primary }]} />
-                  <Text style={styles.legendText}>Product A (45%)</Text>
+              <View style={styles.legendContainerEnhanced}>
+                <View style={styles.legendItemEnhanced}>
+                  <LinearGradient
+                    colors={['#4285F4', '#34A853']}
+                    style={styles.legendColorEnhanced}
+                    start={{x: 0, y: 0}}
+                    end={{x: 1, y: 0}}
+                  />
+                  <Text style={styles.legendTextEnhanced}>Product A (45%)</Text>
                 </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendColor, { backgroundColor: colors.secondary }]} />
-                  <Text style={styles.legendText}>Product B (30%)</Text>
+                <View style={styles.legendItemEnhanced}>
+                  <LinearGradient
+                    colors={['#673AB7', '#3F51B5']}
+                    style={styles.legendColorEnhanced}
+                    start={{x: 0, y: 0}}
+                    end={{x: 1, y: 0}}
+                  />
+                  <Text style={styles.legendTextEnhanced}>Product B (30%)</Text>
                 </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendColor, { backgroundColor: colors.gray[400] }]} />
-                  <Text style={styles.legendText}>Other (25%)</Text>
+                <View style={styles.legendItemEnhanced}>
+                  <LinearGradient
+                    colors={['#9E9E9E', '#757575']}
+                    style={styles.legendColorEnhanced}
+                    start={{x: 0, y: 0}}
+                    end={{x: 1, y: 0}}
+                  />
+                  <Text style={styles.legendTextEnhanced}>Other (25%)</Text>
                 </View>
               </View>
-            </Card>
+            </LinearGradient>
           </View>
         </Animated.View>
         
@@ -171,14 +295,19 @@ export default function InsightsScreen() {
               </TouchableOpacity>
             </View>
             
-            <Card style={styles.chartCard}>
-              <View style={styles.chartPlaceholder}>
-                <BarChart3 size={120} color={colors.primary} />
-                <Text style={styles.chartPlaceholderText}>
+            <LinearGradient
+              colors={['#212121', '#1A2026', '#151B21']}
+              style={styles.enhancedChartCard}
+              start={{x: 0, y: 0}}
+              end={{x: 1, y: 1}}
+            >
+              <View style={styles.chartPlaceholderEnhanced}>
+                <BarChart3 size={120} color="#4285F4" />
+                <Text style={styles.chartPlaceholderTextEnhanced}>
                   Performance trends will be visualized here
                 </Text>
               </View>
-            </Card>
+            </LinearGradient>
           </View>
         </Animated.View>
         
@@ -190,41 +319,91 @@ export default function InsightsScreen() {
         >
           <Text style={styles.sectionTitle}>Recommendations</Text>
           
-          <Card style={styles.recommendationCard}>
-            <Text style={styles.recommendationTitle}>
-              Diversify Revenue Streams
-            </Text>
-            <Text style={styles.recommendationDescription}>
-              Based on your financial data, consider exploring new product lines to reduce dependency on Product A.
-            </Text>
-            <TouchableOpacity style={styles.learnMoreButton}>
-              <Text style={styles.learnMoreText}>Learn more</Text>
-              <ArrowRight size={16} color={colors.primary} />
-            </TouchableOpacity>
-          </Card>
+          <TouchableOpacity 
+            activeOpacity={0.8}
+            onPressIn={() => setActiveCard('rec1')}
+            onPressOut={() => setActiveCard(null)}
+          >
+            <Animated.View style={[
+              { transform: [{ scale: activeCard === 'rec1' ? 1.02 : 1 }] }
+            ]}>
+              <LinearGradient
+                colors={['#212121', '#1A2026', '#151B21']}
+                style={styles.recommendationCardEnhanced}
+                start={{x: 0, y: 0}}
+                end={{x: 1, y: 1}}
+              >
+                <Text style={styles.recommendationTitleEnhanced}>
+                  Diversify Revenue Streams
+                </Text>
+                <Text style={styles.recommendationDescriptionEnhanced}>
+                  Based on your financial data, consider exploring new product lines to reduce dependency on Product A.
+                </Text>
+                <View style={styles.learnMoreButtonEnhanced}>
+                  <Text style={styles.learnMoreTextEnhanced}>Learn more</Text>
+                  <ArrowRight size={16} color="#4285F4" />
+                </View>
+                
+                {/* Shimmer effect */}
+                <Animated.View style={[
+                  styles.shimmerEffect,
+                  { transform: [{ translateX: shimmerTranslate }] }
+                ]} />
+              </LinearGradient>
+            </Animated.View>
+          </TouchableOpacity>
           
-          <Card style={styles.recommendationCard}>
-            <Text style={styles.recommendationTitle}>
-              Optimize Operating Expenses
-            </Text>
-            <Text style={styles.recommendationDescription}>
-              Your operating expenses have increased by 8% compared to last year. Consider reviewing major cost centers.
-            </Text>
-            <TouchableOpacity style={styles.learnMoreButton}>
-              <Text style={styles.learnMoreText}>Learn more</Text>
-              <ArrowRight size={16} color={colors.primary} />
-            </TouchableOpacity>
-          </Card>
+          <TouchableOpacity 
+            activeOpacity={0.8}
+            onPressIn={() => setActiveCard('rec2')}
+            onPressOut={() => setActiveCard(null)}
+          >
+            <Animated.View style={[
+              { transform: [{ scale: activeCard === 'rec2' ? 1.02 : 1 }] }
+            ]}>
+              <LinearGradient
+                colors={['#212121', '#1A2026', '#151B21']}
+                style={styles.recommendationCardEnhanced}
+                start={{x: 0, y: 0}}
+                end={{x: 1, y: 1}}
+              >
+                <Text style={styles.recommendationTitleEnhanced}>
+                  Optimize Operating Expenses
+                </Text>
+                <Text style={styles.recommendationDescriptionEnhanced}>
+                  Your operating expenses have increased by 8% compared to last year. Consider reviewing major cost centers.
+                </Text>
+                <View style={styles.learnMoreButtonEnhanced}>
+                  <Text style={styles.learnMoreTextEnhanced}>Learn more</Text>
+                  <ArrowRight size={16} color="#4285F4" />
+                </View>
+                
+                {/* Shimmer effect */}
+                <Animated.View style={[
+                  styles.shimmerEffect,
+                  { transform: [{ translateX: shimmerTranslate }] }
+                ]} />
+              </LinearGradient>
+            </Animated.View>
+          </TouchableOpacity>
         </Animated.View>
       </ScrollView>
     </SafeAreaView>
+    </ImageBackground>
   );
 }
 
+const { width } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
+  // Keeping all your original styles
+  backgroundImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
@@ -237,8 +416,16 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   subtitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
+    marginTop: 80,
+    fontSize: 29,
+    color: 'white',
+    bottom: 20,
+    fontWeight: '500',
+  },
+  subtitleSmall: {
+    marginTop: 10,
+    color: 'gray',
+    bottom: 20,
   },
   insightsContainer: {
     paddingHorizontal: 20,
@@ -247,7 +434,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: colors.text,
+    color: 'white',
     marginBottom: 16,
   },
   metricsContainer: {
@@ -355,5 +542,135 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '500',
     marginRight: 4,
+  },
+  
+  // New enhanced styles
+  metricGradientCard: {
+    width: width * 0.28,
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  metricValueEnhanced: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: 'white',
+    marginBottom: 4,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  metricLabelEnhanced: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.7)',
+    textAlign: 'center',
+  },
+  shimmerEffect: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+  },
+  enhancedChartCard: {
+    padding: 16,
+    borderRadius: 12,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.27,
+    shadowRadius: 4.65,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  chartPlaceholderEnhanced: {
+    height: 200,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(30,30,30,0.5)',
+    borderRadius: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  chartPlaceholderTextEnhanced: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.6)',
+    textAlign: 'center',
+    marginTop: 16,
+    paddingHorizontal: 20,
+  },
+  legendContainerEnhanced: {
+    marginTop: 12,
+    backgroundColor: 'rgba(30,30,30,0.5)',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  legendItemEnhanced: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  legendColorEnhanced: {
+    width: 16,
+    height: 16,
+    borderRadius: 4,
+    marginRight: 12,
+  },
+  legendTextEnhanced: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  recommendationCardEnhanced: {
+    marginBottom: 12,
+    borderRadius: 12,
+    padding: 16,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.27,
+    shadowRadius: 4.65,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  recommendationTitleEnhanced: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: 'white',
+    marginBottom: 8,
+  },
+  recommendationDescriptionEnhanced: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  learnMoreButtonEnhanced: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(66, 133, 244, 0.15)',
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+  },
+  learnMoreTextEnhanced: {
+    fontSize: 13,
+    color: '#4285F4',
+    fontWeight: '500',
+    marginRight: 6,
   },
 });
