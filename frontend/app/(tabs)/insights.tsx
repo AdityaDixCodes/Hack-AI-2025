@@ -1,249 +1,267 @@
-import React, { useEffect, useRef } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
+// frontend/app/(tabs)/insights.tsx
+import React, { useEffect, useRef, useState } from 'react'
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
   Animated,
+  ActivityIndicator,
   TouchableOpacity,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '@/constants/colors';
-import { Card } from '@/components/Card';
-import { EmptyState } from '@/components/EmptyState';
-import { 
-  TrendingUp, 
-  PieChart, 
-  BarChart3, 
-  DollarSign, 
-  Percent, 
-  ArrowRight,
-  BookOpen,
-} from 'lucide-react-native';
-import { router } from 'expo-router';
-import { useChatStore } from '@/store/chat-store';
+  Platform,
+} from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import axios from 'axios'
+import { colors } from '@/constants/colors'
+import { Card } from '@/components/Card'
+import { EmptyState } from '@/components/EmptyState'
+import { BookOpen } from 'lucide-react-native'
+import { router } from 'expo-router'
+import {
+  VictoryBar,
+  VictoryChart,
+  VictoryTheme,
+  VictoryLine,
+  VictoryPie,
+  VictoryAxis,
+} from 'victory-native';
+
+interface Metric {
+  label: string
+  value: string
+}
+
+interface TimeSeriesData {
+  revenue: { x: string; y: number }[];
+  profit: { x: string; y: number }[];
+}
+
+interface SegmentData {
+  x: string;
+  y: number;
+}
+
+interface FinancialData {
+  metrics: Metric[];
+  timeSeriesData: TimeSeriesData;
+  segmentData: SegmentData[];
+}
+
+const API_BASE_URL = Platform.OS === 'ios' 
+  ? 'http://127.0.0.1:8000'
+  : 'http://10.0.2.2:8000'; // For Android emulator
 
 export default function InsightsScreen() {
-  const { sessions, createSession } = useChatStore();
-  const hasSessions = sessions.length > 0;
-  
-  // Animation values
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-  
+  const [indexed, setIndexed] = useState<boolean | null>(null)
+  const [metrics, setMetrics] = useState<Metric[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [financialData, setFinancialData] = useState<FinancialData | null>(null);
+
+  const fadeAnim = useRef(new Animated.Value(0)).current
+  const slideAnim = useRef(new Animated.Value(20)).current
+
+  // fade/slide in
   useEffect(() => {
-    // Start animations
     Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
-  
-  const handleStartLearning = () => {
-    const sessionId = createSession();
-    router.push(`/chat/${sessionId}`);
+      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
+    ]).start()
+  }, [])
+
+  // 1) check status on mount
+  useEffect(() => {
+    axios
+      .get<{ indexed: boolean }>('http://127.0.0.1:8000/status')
+      .then(res => {
+        console.log('STATUS:', res.data)
+        setIndexed(res.data.indexed)
+      })
+      .catch(err => {
+        console.error('status error', err)
+        setIndexed(false)
+      })
+  }, [])
+
+  // 2) when indexed flips to true, fetch metrics
+  useEffect(() => {
+    if (indexed) fetchMetrics()
+  }, [indexed])
+
+  const fetchMetrics = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [metricsResponse, timeSeriesResponse, segmentResponse] = await Promise.all([
+        axios.get<Metric[]>(`${API_BASE_URL}/metrics`),
+        axios.get<TimeSeriesData>(`${API_BASE_URL}/timeseries`),
+        axios.get<SegmentData[]>(`${API_BASE_URL}/segments`),
+      ]);
+
+      console.log('Metrics:', metricsResponse.data);
+      console.log('TimeSeries:', timeSeriesResponse.data);
+      console.log('Segments:', segmentResponse.data);
+
+      setFinancialData({
+        metrics: metricsResponse.data,
+        timeSeriesData: timeSeriesResponse.data,
+        segmentData: segmentResponse.data,
+      });
+    } catch (err) {
+      console.error('Data fetch error:', err);
+      if (axios.isAxiosError(err)) {
+        setError(`Failed to fetch data: ${err.response?.data?.detail || err.message}`);
+      } else {
+        setError('Could not extract data from your report.');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
-  
-  if (!hasSessions) {
+
+  const goUpload = () => {
+    router.push('/upload') // or wherever your upload screen lives
+  }
+
+  // still waiting on status
+  if (indexed === null) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </SafeAreaView>
+    )
+  }
+
+  // no PDF indexed yet
+  if (!indexed) {
     return (
       <SafeAreaView style={styles.container} edges={['bottom']}>
         <EmptyState
-          title="No insights yet"
-          description="Upload financial reports or start conversations to generate insights."
+          title="No report uploaded"
+          description="Upload a financial PDF to see your insights here."
           icon={<BookOpen size={48} color={colors.primary} />}
-          actionLabel="Start Learning"
-          onAction={handleStartLearning}
+          actionLabel="Upload Report"
+          onAction={goUpload}
         />
       </SafeAreaView>
-    );
+    )
   }
+
+  // PDF is indexed, show metrics
+  const renderCharts = () => {
+    if (!financialData) return null;
+
+    return (
+      <>
+        {/* Revenue Trend */}
+        <View style={styles.chartContainer}>
+          <Text style={styles.chartTitle}>Revenue Trend</Text>
+          <VictoryChart theme={VictoryTheme.material} height={250}>
+            <VictoryLine
+              style={{
+                data: { stroke: colors.primary },
+                parent: { border: "1px solid #ccc"}
+              }}
+              data={financialData.timeSeriesData.revenue}
+            />
+          </VictoryChart>
+        </View>
+
+        {/* Profit vs Revenue */}
+        <View style={styles.chartContainer}>
+          <Text style={styles.chartTitle}>Profit vs Revenue</Text>
+          <VictoryChart theme={VictoryTheme.material} height={250}>
+            <VictoryAxis />
+            <VictoryAxis dependentAxis />
+            <VictoryBar
+              data={financialData.timeSeriesData.revenue}
+              style={{ data: { fill: colors.primary } }}
+            />
+            <VictoryLine
+              data={financialData.timeSeriesData.profit}
+              style={{ data: { stroke: colors.success } }}
+            />
+          </VictoryChart>
+        </View>
+
+        {/* Business Segment Distribution */}
+        <View style={styles.chartContainer}>
+          <Text style={styles.chartTitle}>Business Segments</Text>
+          <VictoryPie
+            data={financialData.segmentData}
+            colorScale={["tomato", "orange", "gold", "cyan", "navy"]}
+            height={250}
+            style={{ labels: { fill: colors.text, fontSize: 12 } }}
+          />
+        </View>
+      </>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View 
+        <Animated.View
           style={[
             styles.headerContainer,
-            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
           ]}
         >
           <Text style={styles.subtitle}>
-            Personalized insights based on your financial conversations
+            Insights from your latest financial report
           </Text>
         </Animated.View>
-        
-        <Animated.View 
-          style={[
-            styles.insightsContainer,
-            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
-          ]}
-        >
-          <Text style={styles.sectionTitle}>Key Metrics</Text>
-          
-          <View style={styles.metricsContainer}>
-            <Card style={styles.metricCard}>
-              <View style={[styles.iconContainer, { backgroundColor: colors.primaryLight + '30' }]}>
-                <TrendingUp size={20} color={colors.primary} />
-              </View>
-              <Text style={styles.metricValue}>+12.4%</Text>
-              <Text style={styles.metricLabel}>Revenue Growth</Text>
-            </Card>
-            
-            <Card style={styles.metricCard}>
-              <View style={[styles.iconContainer, { backgroundColor: colors.secondaryLight + '30' }]}>
-                <Percent size={20} color={colors.secondary} />
-              </View>
-              <Text style={styles.metricValue}>18.2%</Text>
-              <Text style={styles.metricLabel}>Profit Margin</Text>
-            </Card>
-            
-            <Card style={styles.metricCard}>
-              <View style={[styles.iconContainer, { backgroundColor: colors.primaryLight + '30' }]}>
-                <DollarSign size={20} color={colors.primary} />
-              </View>
-              <Text style={styles.metricValue}>$2.4M</Text>
-              <Text style={styles.metricLabel}>Cash Flow</Text>
-            </Card>
+
+        {loading ? (
+          <View style={styles.centerContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.loadingText}>Analyzing report...</Text>
           </View>
-        </Animated.View>
-        
-        <Animated.View 
-          style={[
-            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
-          ]}
-        >
-          <View style={styles.chartSection}>
-            <View style={styles.chartHeader}>
-              <Text style={styles.sectionTitle}>Revenue Breakdown</Text>
-              <TouchableOpacity>
-                <Text style={styles.viewMoreText}>View Details</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <Card style={styles.chartCard}>
-              <View style={styles.chartPlaceholder}>
-                <PieChart size={120} color={colors.primary} />
-                <Text style={styles.chartPlaceholderText}>
-                  Interactive charts will appear here based on your financial data
-                </Text>
-              </View>
-              
-              <View style={styles.legendContainer}>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendColor, { backgroundColor: colors.primary }]} />
-                  <Text style={styles.legendText}>Product A (45%)</Text>
-                </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendColor, { backgroundColor: colors.secondary }]} />
-                  <Text style={styles.legendText}>Product B (30%)</Text>
-                </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendColor, { backgroundColor: colors.gray[400] }]} />
-                  <Text style={styles.legendText}>Other (25%)</Text>
-                </View>
-              </View>
-            </Card>
+        ) : error ? (
+          <View style={styles.centerContainer}>
+            <Text style={styles.errorText}>{error}</Text>
           </View>
-        </Animated.View>
-        
-        <Animated.View 
-          style={[
-            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
-          ]}
-        >
-          <View style={styles.chartSection}>
-            <View style={styles.chartHeader}>
-              <Text style={styles.sectionTitle}>Quarterly Performance</Text>
-              <TouchableOpacity>
-                <Text style={styles.viewMoreText}>View Details</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <Card style={styles.chartCard}>
-              <View style={styles.chartPlaceholder}>
-                <BarChart3 size={120} color={colors.primary} />
-                <Text style={styles.chartPlaceholderText}>
-                  Performance trends will be visualized here
-                </Text>
+        ) : (
+          <Animated.View
+            style={[
+              styles.insightsContainer,
+              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+            ]}
+          >
+            <Text style={styles.sectionTitle}>Key Metrics</Text>
+
+            {metrics.length === 0 ? (
+              <Text style={styles.noDataText}>No metrics found in this report.</Text>
+            ) : (
+              <View style={styles.metricsContainer}>
+                {metrics.map((m, i) => (
+                  <Card key={i} style={styles.metricCard}>
+                    <Text style={styles.metricValue}>{m.value}</Text>
+                    <Text style={styles.metricLabel}>{m.label}</Text>
+                  </Card>
+                ))}
               </View>
-            </Card>
-          </View>
-        </Animated.View>
-        
-        <Animated.View 
-          style={[
-            styles.recommendationsContainer,
-            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
-          ]}
-        >
-          <Text style={styles.sectionTitle}>Recommendations</Text>
-          
-          <Card style={styles.recommendationCard}>
-            <Text style={styles.recommendationTitle}>
-              Diversify Revenue Streams
-            </Text>
-            <Text style={styles.recommendationDescription}>
-              Based on your financial data, consider exploring new product lines to reduce dependency on Product A.
-            </Text>
-            <TouchableOpacity style={styles.learnMoreButton}>
-              <Text style={styles.learnMoreText}>Learn more</Text>
-              <ArrowRight size={16} color={colors.primary} />
-            </TouchableOpacity>
-          </Card>
-          
-          <Card style={styles.recommendationCard}>
-            <Text style={styles.recommendationTitle}>
-              Optimize Operating Expenses
-            </Text>
-            <Text style={styles.recommendationDescription}>
-              Your operating expenses have increased by 8% compared to last year. Consider reviewing major cost centers.
-            </Text>
-            <TouchableOpacity style={styles.learnMoreButton}>
-              <Text style={styles.learnMoreText}>Learn more</Text>
-              <ArrowRight size={16} color={colors.primary} />
-            </TouchableOpacity>
-          </Card>
-        </Animated.View>
+            )}
+
+            {renderCharts()}
+          </Animated.View>
+        )}
       </ScrollView>
     </SafeAreaView>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 40,
-  },
-  headerContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  insightsContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
-  },
+  container: { flex: 1, backgroundColor: colors.background },
+  scrollView: { flex: 1 },
+  scrollContent: { paddingBottom: 40 },
+  headerContainer: { padding: 20 },
+  subtitle: { fontSize: 16, color: colors.textSecondary },
+  insightsContainer: { paddingHorizontal: 20, marginBottom: 24 },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
@@ -252,19 +270,14 @@ const styles = StyleSheet.create({
   },
   metricsContainer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
   metricCard: {
-    width: '31%',
+    width: '48%',
+    padding: 16,
     alignItems: 'center',
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   metricValue: {
     fontSize: 18,
@@ -277,83 +290,30 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
   },
-  chartSection: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
-  },
-  chartHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  viewMoreText: {
-    fontSize: 14,
-    color: colors.primary,
-    fontWeight: '500',
-  },
-  chartCard: {
+  errorText: { color: colors.error, textAlign: 'center' },
+  noDataText: { color: colors.textSecondary, textAlign: 'center' },
+  chartContainer: {
+    marginTop: 24,
     padding: 16,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    marginHorizontal: 20,
   },
-  chartPlaceholder: {
-    height: 200,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.gray[50],
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  chartPlaceholderText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 16,
-    paddingHorizontal: 20,
-  },
-  legendContainer: {
-    marginTop: 8,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  legendColor: {
-    width: 16,
-    height: 16,
-    borderRadius: 4,
-    marginRight: 8,
-  },
-  legendText: {
-    fontSize: 14,
-    color: colors.text,
-  },
-  recommendationsContainer: {
-    paddingHorizontal: 20,
-  },
-  recommendationCard: {
-    marginBottom: 12,
-  },
-  recommendationTitle: {
+  chartTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: 16,
   },
-  recommendationDescription: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  learnMoreButton: {
-    flexDirection: 'row',
+  centerContainer: {
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
   },
-  learnMoreText: {
-    fontSize: 14,
-    color: colors.primary,
-    fontWeight: '500',
-    marginRight: 4,
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: colors.textSecondary,
   },
-});
+})

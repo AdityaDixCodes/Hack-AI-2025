@@ -4,16 +4,18 @@
 #               langchain-community faiss-cpu python-dotenv tiktoken sentence-transformers
 
 from dotenv import load_dotenv
-load_dotenv()  # load environment variables from .env
+load_dotenv()
 
 import os
 import traceback
 import logging
+import json
 import fitz  # PyMuPDF
+from typing import List, Any
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from typing import List
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import HuggingFaceEmbeddings
@@ -26,11 +28,9 @@ from langchain.chains import RetrievalQA
 # ─────────────────────────────────────────────────────────────────────────────
 logger = logging.getLogger("pifi_backend")
 logger.setLevel(logging.INFO)
-# If Uvicorn is used, its logger will capture these messages too.
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Environment variables:
-#   - OPENROUTER_API_KEY  (for chat via OpenRouter)
+# Environment variables
 # ─────────────────────────────────────────────────────────────────────────────
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 if not OPENROUTER_API_KEY:
@@ -38,7 +38,7 @@ if not OPENROUTER_API_KEY:
     raise EnvironmentError("Please set OPENROUTER_API_KEY in your .env file")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# App & CORS setup
+# FastAPI setup
 # ─────────────────────────────────────────────────────────────────────────────
 app = FastAPI(
     title="PiFi RAG Backend",
@@ -46,45 +46,43 @@ app = FastAPI(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],            # in production, restrict to your frontend domain
+    allow_origins=["*"],  # In production, restrict this!
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Globals to hold our vectorstore & chain
+# Globals for our index & QA chain
 # ─────────────────────────────────────────────────────────────────────────────
 vectorstore: FAISS = None
 qa_chain: RetrievalQA = None
 
-
 # ─────────────────────────────────────────────────────────────────────────────
-# Helper: parse PDF → text
+# Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 def pdf_to_text(pdf_bytes: bytes) -> str:
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-    pages = [page.get_text() for page in doc]
-    logger.info("Extracted text from %d pages", len(pages))
-    return "\n".join(pages)
+    text = [page.get_text() for page in doc]
+    logger.info("Extracted text from %d pages", len(text))
+    return "\n".join(text)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Helper: build the FAISS index & QA chain
-# ─────────────────────────────────────────────────────────────────────────────
 def build_index_and_chain(pdf_bytes: bytes):
     global vectorstore, qa_chain
 
-    logger.info("Starting to build index for report (%d bytes)", len(pdf_bytes))
+    # 1) Extract text
     full_text = pdf_to_text(pdf_bytes)
 
+    # 2) Chunk text
     splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
     chunks = splitter.split_text(full_text)
-    logger.info("Split text into %d chunks", len(chunks))
+    logger.info("Split into %d chunks", len(chunks))
 
+    # 3) Build embeddings index
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     vectorstore = FAISS.from_texts(chunks, embeddings)
-    logger.info("Built FAISS index with %d embeddings", len(chunks))
+    logger.info("FAISS index built")
 
+    # 4) Setup RetrievalQA
     llm = ChatOpenAI(
         model_name="deepseek/deepseek-chat-v3-0324:free",
         openai_api_key=OPENROUTER_API_KEY,
@@ -94,43 +92,39 @@ def build_index_and_chain(pdf_bytes: bytes):
         llm=llm,
         chain_type="stuff",
         retriever=vectorstore.as_retriever(),
-        return_source_documents=True
+        return_source_documents=True,
     )
     logger.info("RetrievalQA chain initialized")
 
-
 # ─────────────────────────────────────────────────────────────────────────────
-# Request / Response Models
+# Request / Response models
 # ─────────────────────────────────────────────────────────────────────────────
 class AskRequest(BaseModel):
     question: str
-
 
 class AskResponse(BaseModel):
     answer: str
     sources: List[str]
 
+class Metric(BaseModel):
+    label: str
+    value: str
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Health: is an index loaded?
+# Health check
 # ─────────────────────────────────────────────────────────────────────────────
 @app.get("/status")
 def status():
-    indexed = vectorstore is not None
-    logger.debug("/status → %s", indexed)
-    return {"indexed": indexed}
-
+    return {"indexed": vectorstore is not None}
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 1) Upload & index an Annual Report
+# 1) Upload & index PDF
 # ─────────────────────────────────────────────────────────────────────────────
 @app.post("/upload")
 async def upload_report(file: UploadFile = File(...)):
-    logger.info("Received upload request: filename=%s, content_type=%s", file.filename, file.content_type)
+    logger.info("Upload request: %s (%s)", file.filename, file.content_type)
     if file.content_type != "application/pdf":
-        logger.warning("Rejected upload: not a PDF (%s)", file.content_type)
         raise HTTPException(status_code=400, detail="Only PDF files allowed")
-
     pdf_bytes = await file.read()
     try:
         build_index_and_chain(pdf_bytes)
@@ -138,33 +132,122 @@ async def upload_report(file: UploadFile = File(...)):
         tb = traceback.format_exc()
         logger.error("Indexing failed: %s\n%s", e, tb)
         raise HTTPException(status_code=500, detail=f"Indexing failed: {e}")
-    logger.info("Upload and indexing succeeded")
     return {"detail": "Report indexed successfully"}
 
-
 # ─────────────────────────────────────────────────────────────────────────────
-# 2) Ask a question of the indexed report
+# 2) General QA
 # ─────────────────────────────────────────────────────────────────────────────
 @app.post("/ask", response_model=AskResponse)
 def ask(request: AskRequest):
-    logger.info("Received question: %s", request.question)
     if qa_chain is None:
-        logger.warning("Ask called before indexing")
-        raise HTTPException(status_code=400, detail="No report indexed yet. Upload first.")
+        raise HTTPException(status_code=400, detail="No report indexed yet.")
     try:
         result = qa_chain({"query": request.question})
     except Exception as e:
         tb = traceback.format_exc()
-        logger.error("Error during QA: %s\n%s", e, tb)
+        logger.error("QA error: %s\n%s", e, tb)
         raise HTTPException(status_code=500, detail=f"QA failed: {e}")
-
     answer = result["result"]
     sources = [doc.page_content for doc in result["source_documents"]]
-    logger.info("Returning answer (length=%d) with %d sources", len(answer), len(sources))
     return AskResponse(answer=answer, sources=sources)
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 3) Extract financial metrics
+# ─────────────────────────────────────────────────────────────────────────────
+@app.get("/metrics", response_model=List[Metric])
+def extract_metrics():
+    """
+    Automatically extract all key financial metrics from
+    the indexed PDF. Returns an array of { label, value }.
+    """
+    if qa_chain is None:
+        raise HTTPException(status_code=400, detail="No report indexed yet.")
+    PROMPT = (
+        'Extract all key financial metrics (label and value) from the uploaded PDF '
+        'and return them as a JSON array like '
+        '[{"label":"Revenue","value":"INR 355,170 Million"}, ...].'
+    )
+    try:
+        result = qa_chain({"query": PROMPT})
+        # Expect result["result"] to be JSON text
+        metrics_json = result["result"].strip()
+        metrics: Any = json.loads(metrics_json)
+        return JSONResponse(content=metrics)
+    except json.JSONDecodeError as je:
+        logger.error("Failed to parse JSON from LLM: %s", je)
+        raise HTTPException(status_code=500, detail="Failed to parse metrics JSON.")
+    except Exception as e:
+        tb = traceback.format_exc()
+        logger.error("Error extracting metrics: %s\n%s", e, tb)
+        raise HTTPException(status_code=500, detail=f"Metrics extraction failed: {e}")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Run with:
+# Add these new models
+# ─────────────────────────────────────────────────────────────────────────────
+class TimeSeriesData(BaseModel):
+    revenue: List[dict]
+    profit: List[dict]
+
+class SegmentData(BaseModel):
+    x: str
+    y: float
+
+@app.get("/timeseries", response_model=TimeSeriesData)
+def get_timeseries():
+    """
+    Extract time series data (revenue, profit over time) from the PDF
+    """
+    if qa_chain is None:
+        raise HTTPException(status_code=400, detail="No report indexed yet.")
+    
+    PROMPT = (
+        'Extract yearly revenue and profit figures from the report. Return as JSON in format: '
+        '{"revenue": [{"x": "2019", "y": 1000000}, ...], '
+        '"profit": [{"x": "2019", "y": 100000}, ...]}'
+    )
+    
+    try:
+        result = qa_chain({"query": PROMPT})
+        data = json.loads(result["result"].strip())
+        # Validate the structure
+        if not isinstance(data, dict) or 'revenue' not in data or 'profit' not in data:
+            raise ValueError("Invalid data structure")
+        return data
+    except json.JSONDecodeError as je:
+        logger.error("Failed to parse JSON from LLM: %s", je)
+        raise HTTPException(status_code=500, detail="Failed to parse financial data")
+    except Exception as e:
+        logger.error("Error: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/segments", response_model=List[SegmentData])
+def get_segments():
+    """
+    Extract business segment distribution data from the PDF
+    """
+    if qa_chain is None:
+        raise HTTPException(status_code=400, detail="No report indexed yet.")
+    
+    PROMPT = (
+        'Extract business segment revenue distribution from the report. '
+        'Return as JSON array: [{"x": "Segment Name", "y": revenue_value}, ...]'
+    )
+    
+    try:
+        result = qa_chain({"query": PROMPT})
+        data = json.loads(result["result"].strip())
+        # Validate the structure
+        if not isinstance(data, list):
+            raise ValueError("Invalid data structure")
+        return data
+    except json.JSONDecodeError as je:
+        logger.error("Failed to parse JSON from LLM: %s", je)
+        raise HTTPException(status_code=500, detail="Failed to parse segment data")
+    except Exception as e:
+        logger.error("Error: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ─────────────────────────────────────────────────────────────────────────────
+# To run:
 #    uvicorn backend.app:app --reload --port 8000
 # ─────────────────────────────────────────────────────────────────────────────
