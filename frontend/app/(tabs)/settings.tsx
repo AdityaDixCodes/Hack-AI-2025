@@ -29,7 +29,7 @@ import {
 import * as Haptics from 'expo-haptics';
 
 export default function SettingsScreen() {
-  const { profile, theme, updateProfile, setTheme } = useUserStore();
+  const { profile, theme, updateProfile, setTheme, setOnboarded } = useUserStore();
   const { sessions, clearMessages } = useChatStore();
   
   const [notifications, setNotifications] = useState(true);
@@ -86,6 +86,50 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleReset = () => {
+    if (Platform.OS === 'web') {
+      if (confirm('Are you sure you want to restart the onboarding process? This will reset all your data.')) {
+        resetAllData();
+      }
+    } else {
+      Alert.alert(
+        'Reset Profile',
+        'Are you sure you want to restart the onboarding process? This will reset all your data.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Reset', 
+            style: 'destructive',
+            onPress: () => {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+              resetAllData();
+            }
+          },
+        ]
+      );
+    }
+  };
+
+  const resetAllData = () => {
+    // Reset user profile
+    updateProfile({
+      experienceLevel: 'beginner',
+      financialInterests: [],
+      name: undefined
+    });
+
+    // Clear all chat sessions
+    sessions.forEach(() => {
+      clearMessages();
+    });
+
+    // Reset onboarding flag
+    setOnboarded(false);
+
+    // Reset theme to system
+    setTheme('system');
+  };
+
   // Get the experience level with a fallback
   const experienceLevel = profile.experienceLevel || 'beginner';
   const formattedExperienceLevel = experienceLevel.charAt(0).toUpperCase() + experienceLevel.slice(1);
@@ -109,8 +153,8 @@ export default function SettingsScreen() {
               {formattedExperienceLevel} Level
             </Text>
           </View>
-          <TouchableOpacity style={styles.editButton}>
-            <Text style={styles.editButtonText}>Edit</Text>
+          <TouchableOpacity style={styles.editButton} onPress={handleReset}>
+            <Text style={styles.editButtonText}>Reset Profile</Text>
           </TouchableOpacity>
         </View>
         
