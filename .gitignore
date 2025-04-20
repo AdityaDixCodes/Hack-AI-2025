@@ -1,3 +1,14 @@
+# Python venv
+.venv/
+__pycache__/
+
+# Expo / RN
+node_modules/
+.expo/
+
+# Build artifacts
+dist/
+build/
+
+# Env files
 .env
-.venv
-pyvenv.cfg
