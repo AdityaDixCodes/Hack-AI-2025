@@ -8,7 +8,7 @@ import {
   Animated,
   ActivityIndicator,
   Platform,
-  Dimensions,
+  ImageBackground,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import axios from 'axios'
@@ -50,23 +50,9 @@ interface InsightsData {
   revenueBreakdown: RevenueSegment[];
 }
 
-// Chart colors for better visibility
-const chartColors = [
-  '#4CAF50', // Green
-  '#2196F3', // Blue
-  '#FFC107', // Amber
-  '#9C27B0', // Purple
-  '#F44336', // Red
-  '#FF9800', // Orange
-  '#00BCD4', // Cyan
-  '#795548', // Brown
-];
-
 const API_BASE_URL = Platform.OS === 'ios' 
   ? 'http://127.0.0.1:8000'
   : 'http://10.0.2.2:8000';
-
-const screenWidth = Dimensions.get('window').width;
 
 export default function InsightsScreen() {
   const [indexed, setIndexed] = useState<boolean | null>(null);
@@ -247,36 +233,26 @@ export default function InsightsScreen() {
   const renderRevenueBreakdown = () => {
     if (!data.revenueBreakdown?.length) return null;
 
-    const chartData = data.revenueBreakdown.map((segment, index) => ({
-      name: segment.segment,
-      population: segment.percentage,
-      color: chartColors[index % chartColors.length],
-      legendFontColor: colors.text,
-      legendFontSize: 12,
-    }));
-
     return (
       <Card style={styles.chartCard}>
         <Text style={styles.chartTitle}>Revenue Breakdown</Text>
         <PieChart
-          data={chartData}
-          width={screenWidth - 64} // Responsive width
-          height={220}
+          data={data.revenueBreakdown.map(segment => ({
+            name: segment.segment,
+            population: segment.percentage,
+            color: ["#4CAF50", "#2196F3", "#FFC107", "#9C27B0", "#F44336"][data.revenueBreakdown.indexOf(segment)],
+            legendFontColor: colors.text,
+            legendFontSize: 12
+          }))}
+          width={300}
+          height={250}
           chartConfig={{
-            backgroundColor: colors.cardBackground,
-            backgroundGradientFrom: colors.cardBackground,
-            backgroundGradientTo: colors.cardBackground,
-            color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-            labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-            style: {
-              borderRadius: 16,
-            },
+            color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
           }}
           accessor="population"
           backgroundColor="transparent"
           paddingLeft="15"
           absolute
-          hasLegend={false} // We'll render our own legend for better control
         />
         <View style={styles.legendContainer}>
           {data.revenueBreakdown.map((segment, index) => (
@@ -284,7 +260,7 @@ export default function InsightsScreen() {
               <View 
                 style={[
                   styles.legendColor, 
-                  { backgroundColor: chartColors[index % chartColors.length] }
+                  { backgroundColor: ["#4CAF50", "#2196F3", "#FFC107", "#9C27B0", "#F44336"][index] }
                 ]} 
               />
               <Text style={styles.legendText}>
@@ -300,93 +276,118 @@ export default function InsightsScreen() {
 
   if (indexed === null || loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>
-            {indexed === null ? 'Checking status...' : 'Loading insights...'}
-          </Text>
-        </View>
-      </SafeAreaView>
+      <ImageBackground 
+        source={require('@/assets/images/image.png')} 
+        style={styles.backgroundImage}
+      >
+        <SafeAreaView style={styles.container}>
+          <View style={styles.centerContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.loadingText}>
+              {indexed === null ? 'Checking status...' : 'Loading insights...'}
+            </Text>
+          </View>
+        </SafeAreaView>
+      </ImageBackground>
     );
   }
 
   if (!indexed) {
     return (
-      <SafeAreaView style={styles.container}>
-        <EmptyState
-          title="No Report Available"
-          description="Upload a financial report to see insights and analysis."
-          icon={<BookOpen size={48} color={colors.primary} />}
-          actionLabel="Upload Report"
-          onAction={() => router.push('/')}
-        />
-      </SafeAreaView>
+      <ImageBackground 
+        source={require('@/assets/images/image.png')} 
+        style={styles.backgroundImage}
+      >
+        <SafeAreaView style={styles.container}>
+          <EmptyState
+            title="No Report Available"
+            description="Upload a financial report to see insights and analysis."
+            icon={<BookOpen size={48} color={colors.primary} />}
+            actionLabel="Upload Report"
+            onAction={() => router.push('/')}
+          />
+        </SafeAreaView>
+      </ImageBackground>
     );
   }
 
   if (error) {
     return (
-      <SafeAreaView style={styles.container}>
-        <EmptyState
-          title="Error Loading Insights"
-          description={error}
-          icon={<AlertCircle size={48} color={colors.error} />}
-          actionLabel="Retry"
-          onAction={fetchInsightsData}
-        />
-      </SafeAreaView>
+      <ImageBackground 
+        source={require('@/assets/images/image.png')} 
+        style={styles.backgroundImage}
+      >
+        <SafeAreaView style={styles.container}>
+          <EmptyState
+            title="Error Loading Insights"
+            description={error}
+            icon={<AlertCircle size={48} color={colors.error} />}
+            actionLabel="Retry"
+            onAction={fetchInsightsData}
+          />
+        </SafeAreaView>
+      </ImageBackground>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.pageTitle}>Financial Insights</Text>
-        
-        {data.keyMetrics && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Key Performance Indicators</Text>
-            {renderKeyMetrics()}
-          </View>
-        )}
+    <ImageBackground 
+      source={require('@/assets/images/image.png')} 
+      style={styles.backgroundImage}
+    >
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.pageTitle}>Financial Insights</Text>
+          
+          {data.keyMetrics && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Key Performance Indicators</Text>
+              {renderKeyMetrics()}
+            </View>
+          )}
 
-        {data.financialMetrics && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Balance Sheet Highlights</Text>
-            {renderFinancialMetrics()}
-          </View>
-        )}
+          {data.financialMetrics && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Balance Sheet Highlights</Text>
+              {renderFinancialMetrics()}
+            </View>
+          )}
 
-        {data.revenueBreakdown.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Market Segments</Text>
-            {renderRevenueBreakdown()}
-          </View>
-        )}
+          {data.revenueBreakdown.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Market Segments</Text>
+              {renderRevenueBreakdown()}
+            </View>
+          )}
 
-        {(!data.keyMetrics && !data.financialMetrics && !data.revenueBreakdown.length) && (
-          <EmptyState
-            title="No Data Available"
-            description="Could not extract insights from the uploaded report."
-            icon={<AlertCircle size={48} color={colors.warning} />}
-            actionLabel="Retry"
-            onAction={fetchInsightsData}
-          />
-        )}
-      </ScrollView>
-    </SafeAreaView>
+          {(!data.keyMetrics && !data.financialMetrics && !data.revenueBreakdown.length) && (
+            <EmptyState
+              title="No Data Available"
+              description="Could not extract insights from the uploaded report."
+              icon={<AlertCircle size={48} color={colors.warning} />}
+              actionLabel="Retry"
+              onAction={fetchInsightsData}
+            />
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  backgroundImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: 'transparent',
   },
   centerContainer: {
     flex: 1,
@@ -403,34 +404,35 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: colors.textSecondary,
+    color: colors.white,
   },
   pageTitle: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
-    color: colors.text,
+    color: colors.white,
     marginBottom: 24,
+    marginTop: 60,
   },
   section: {
-    marginBottom: 32,
+    marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.gray[400],
     marginBottom: 16,
   },
   metricsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 16,
   },
   metricCard: {
-    width: '47%',
+    width: '48%',
     padding: 16,
-    backgroundColor: colors.cardBackground,
-    borderColor: colors.cardBorder,
+    marginBottom: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   metricHeader: {
     flexDirection: 'row',
@@ -439,33 +441,33 @@ const styles = StyleSheet.create({
   },
   metricLabel: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: colors.gray[400],
     marginLeft: 8,
     flex: 1,
   },
   metricValue: {
     fontSize: 18,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.white,
   },
   chartCard: {
     padding: 16,
-    backgroundColor: colors.cardBackground,
-    borderColor: colors.cardBorder,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   chartTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.white,
     marginBottom: 16,
   },
   legendContainer: {
-    marginTop: 24,
-    gap: 12,
+    marginTop: 16,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 8,
   },
   legendColor: {
     width: 12,
@@ -476,17 +478,16 @@ const styles = StyleSheet.create({
   legendText: {
     flex: 1,
     fontSize: 14,
-    color: colors.text,
+    color: colors.white,
   },
   legendValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
-    marginLeft: 8,
+    color: colors.white,
   },
   metricSubValue: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: colors.gray[400],
     marginTop: 4,
   },
 });

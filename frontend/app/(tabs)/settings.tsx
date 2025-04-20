@@ -137,139 +137,127 @@ export default function SettingsScreen() {
 
   return (
     <ImageBackground 
-        source={require('@/assets/images/image.png')} 
-        style={styles.backgroundImage}
-      >
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      source={require('@/assets/images/image.png')} 
+      style={styles.backgroundImage}
+    >
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.subtitle}>
+            Control Center
+          </Text>
+          <Text style={styles.subtitleSmall}>
+            All your preferences in one place
+          </Text>
 
-<Text style={[styles.subtitle, { color: 'white' }]}>
-              Control Center
-              </Text>
-              <Text style={[styles.subtitleSmall, { color: 'gray' }]}>
-               All your preferences in one place
-              </Text>
-
-        <View style={styles.profileSection}>
-          <View style={styles.profileImageContainer}>
-            <User size={32} color={colors.white} />
-          </View>
-          <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>
-              {profile.name || 'PiFi User'}
-            </Text>
-            <Text style={styles.profileLevel}>
-              {formattedExperienceLevel} Level
-            </Text>
-          </View>
-          <TouchableOpacity style={styles.editButton}>
-            <Text style={styles.editButtonText}>Reset Profile</Text>
-          </TouchableOpacity>
-        </View>
-        
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Preferences</Text>
-          
-          <Card style={styles.settingsCard}>
-           
-            
-            
-            <View style={styles.settingItem}>
-              <View style={styles.settingLabelContainer}>
-                <Bell size={20} color={colors.text} />
-                <Text style={styles.settingLabel}>Notifications</Text>
-              </View>
-              <Switch
-                value={notifications}
-                onValueChange={handleToggleNotifications}
-                trackColor={{ false: colors.gray[300], true: colors.primary }}
-                thumbColor={colors.white}
-              />
+          <View style={styles.profileSection}>
+            <View style={styles.profileImageContainer}>
+              <User size={32} color={colors.white} />
             </View>
-          </Card>
-        </View>
-        
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
-          
-          <Card style={styles.settingsCard}>
-            <TouchableOpacity style={styles.settingButton}>
-              <View style={styles.settingLabelContainer}>
-                <Shield size={20} color={colors.text} />
-                <Text style={styles.settingLabel}>Privacy & Security</Text>
-              </View>
-              <ChevronRight size={20} color={colors.gray[400]} />
-            </TouchableOpacity>
-            
-            <View style={styles.divider} />
-            
+            <View style={styles.profileInfo}>
+              <Text style={styles.profileName}>
+                {profile.name || 'PiFi User'}
+              </Text>
+              <Text style={styles.profileLevel}>
+                {formattedExperienceLevel} Level
+              </Text>
+            </View>
             <TouchableOpacity 
-              style={styles.settingButton}
-              onPress={handleClearAllChats}
+              style={styles.editButton}
+              onPress={handleReset}
             >
-              <View style={styles.settingLabelContainer}>
-                <Trash2 size={20} color={colors.error} />
-                <Text style={[styles.settingLabel, { color: colors.error }]}>
-                  Clear All Chats
-                </Text>
-              </View>
-              <ChevronRight size={20} color={colors.gray[400]} />
+              <Text style={styles.editButtonText}>Reset Profile</Text>
             </TouchableOpacity>
-          </Card>
-        </View>
-        
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Support</Text>
+          </View>
           
-          <Card style={styles.settingsCard}>
-            <TouchableOpacity style={styles.settingButton}>
-              <View style={styles.settingLabelContainer}>
-                <HelpCircle size={20} />
-                <Text style={styles.settingLabel}>Help Center</Text>
-              </View>
-              <ChevronRight size={20} color={colors.gray[400]} />
-            </TouchableOpacity>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Preferences</Text>
             
-            <View style={styles.divider} />
-            
-            <TouchableOpacity style={styles.settingButton}>
-              <View style={styles.settingLabelContainer}>
-                <Info size={20} color={colors.text} />
-                <Text style={styles.settingLabel}>About PiFi</Text>
+            <Card style={styles.settingsCard}>
+             
+              
+              
+              <View style={styles.settingItem}>
+                <View style={styles.settingLabelContainer}>
+                  <Bell size={20} color={colors.text} />
+                  <Text style={styles.settingLabel}>Notifications</Text>
+                </View>
+                <Switch
+                  value={notifications}
+                  onValueChange={handleToggleNotifications}
+                  trackColor={{ false: colors.gray[300], true: colors.primary }}
+                  thumbColor={colors.white}
+                />
               </View>
-              <ChevronRight size={20} color={colors.gray[400]} />
-            </TouchableOpacity>
-          </Card>
-        </View>
-        
-        <View style={styles.versionContainer}>
-          <Text style={styles.versionText}>PiFi v1.0.0</Text>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+            </Card>
+          </View>
+          
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Account</Text>
+            
+            <Card style={styles.settingsCard}>
+              <TouchableOpacity style={styles.settingButton}>
+                <View style={styles.settingLabelContainer}>
+                  <Shield size={20} color={colors.text} />
+                  <Text style={styles.settingLabel}>Privacy & Security</Text>
+                </View>
+                <ChevronRight size={20} color={colors.gray[400]} />
+              </TouchableOpacity>
+              
+              <View style={styles.divider} />
+              
+              <TouchableOpacity 
+                style={styles.settingButton}
+                onPress={handleClearAllChats}
+              >
+                <View style={styles.settingLabelContainer}>
+                  <Trash2 size={20} color={colors.error} />
+                  <Text style={[styles.settingLabel, { color: colors.error }]}>
+                    Clear All Chats
+                  </Text>
+                </View>
+                <ChevronRight size={20} color={colors.gray[400]} />
+              </TouchableOpacity>
+            </Card>
+          </View>
+          
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Support</Text>
+            
+            <Card style={styles.settingsCard}>
+              <TouchableOpacity style={styles.settingButton}>
+                <View style={styles.settingLabelContainer}>
+                  <HelpCircle size={20} />
+                  <Text style={styles.settingLabel}>Help Center</Text>
+                </View>
+                <ChevronRight size={20} color={colors.gray[400]} />
+              </TouchableOpacity>
+              
+              <View style={styles.divider} />
+              
+              <TouchableOpacity style={styles.settingButton}>
+                <View style={styles.settingLabelContainer}>
+                  <Info size={20} color={colors.text} />
+                  <Text style={styles.settingLabel}>About PiFi</Text>
+                </View>
+                <ChevronRight size={20} color={colors.gray[400]} />
+              </TouchableOpacity>
+            </Card>
+          </View>
+          
+          <View style={styles.versionContainer}>
+            <Text style={styles.versionText}>PiFi v1.0.0</Text>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
     </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  subtitle: {
-    marginTop: 80,
-    fontSize: 29,
-    color: 'white',
-    bottom: 20,
-    fontWeight: '500',
-
-  },
-  subtitleSmall: {
-    marginTop: 10,
-    color: 'gray',
-    bottom: 20,
-  },
-
   backgroundImage: {
     flex: 1,
     width: '100%',
@@ -286,12 +274,23 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 40,
   },
+  subtitle: {
+    marginTop: 80,
+    fontSize: 29,
+    color: colors.white,
+    marginBottom: 20,
+    fontWeight: '500',
+  },
+  subtitleSmall: {
+    marginTop: 10,
+    color: colors.gray[400],
+    marginBottom: 20,
+  },
   profileSection: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 10,
-    top: 5,
-    
+    marginTop: 5,
   },
   profileImageContainer: {
     width: 60,
@@ -308,37 +307,38 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: 18,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.white,
     marginBottom: 4,
   },
   profileLevel: {
     fontSize: 14,
-    color: 'gray',
+    color: colors.gray[400],
   },
   editButton: {
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 16,
-    backgroundColor: colors.gray[50],
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   editButtonText: {
     fontSize: 14,
-    color: 'colors.text',
+    color: colors.white,
     fontWeight: '500',
   },
   section: {
     padding: 5,
+    marginTop: 10,
   },
   sectionTitle: {
-    top: 10,
     fontSize: 18,
     fontWeight: '600',
-    color: 'gray',
+    color: colors.gray[400],
     marginBottom: 25,
+    marginTop: 10,
   },
   settingsCard: {
-    color: 'gray',
-    padding: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   settingItem: {
     flexDirection: 'row',
@@ -358,12 +358,12 @@ const styles = StyleSheet.create({
   },
   settingLabel: {
     fontSize: 16,
-    color: colors.text,
+    color: colors.white,
     marginLeft: 12,
   },
   divider: {
     height: 1,
-    backgroundColor: colors.border,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   versionContainer: {
     padding: 20,
@@ -371,6 +371,6 @@ const styles = StyleSheet.create({
   },
   versionText: {
     fontSize: 12,
-    color: colors.gray[500],
+    color: colors.gray[400],
   },
 });
