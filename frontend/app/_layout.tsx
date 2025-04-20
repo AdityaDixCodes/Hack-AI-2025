@@ -3,10 +3,11 @@ import { useFonts } from "expo-font";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { Platform } from "react-native";
+import { Platform, View, StyleSheet } from "react-native";
 import { ErrorBoundary } from "./error-boundary";
 import { StatusBar } from "expo-status-bar";
 import { useUserStore } from "@/store/user-store";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 export const unstable_settings = {
   initialRouteName: "(tabs)",
@@ -61,30 +62,44 @@ export default function RootLayout() {
 
   return (
     <ErrorBoundary>
-      <StatusBar style="dark" />
-      <InitialLayout />
+      <SafeAreaProvider style={styles.container}>
+        <StatusBar style="dark" translucent />
+        <InitialLayout />
+      </SafeAreaProvider>
     </ErrorBoundary>
   );
 }
 
 function RootLayoutNav() {
   return (
-    <Stack>
+    <Stack screenOptions={{
+      headerTransparent: true,
+      headerStyle: { backgroundColor: 'transparent' },
+      contentStyle: { backgroundColor: 'transparent' },
+      headerShadowVisible: false,
+    }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen 
-        name="chat/[id]" 
-        options={{ 
+        name="chat/[id]"
+        options={{
           headerTitle: "Financial Analysis",
           headerBackTitle: "Back",
-        }} 
+        }}
       />
       <Stack.Screen 
-        name="onboarding" 
-        options={{ 
+        name="onboarding"
+        options={{
           headerShown: false,
           gestureEnabled: false,
-        }} 
+        }}
       />
     </Stack>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  }
+});

@@ -5,6 +5,7 @@
 # (venv) KaushikS@MacBook-Pro-2 Hack-AI-2025 % pip install --upgrade pip
 #   pip install fastapi uvicorn python-multipart pymupdf langchain-community faiss-cpu python-dotenv tiktoken sentence-transformers
 # also add .env file with api keys
+# pip install langchain-openai
 #    uvicorn backend.app:app --reload --port 8000
 
 from dotenv import load_dotenv

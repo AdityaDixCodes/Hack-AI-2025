@@ -17,6 +17,8 @@ import { EmptyState } from '@/components/EmptyState';
 import { Button } from '@/components/Button';
 import { MessageSquarePlus } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { ImageBackground } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function ChatsScreen() {
   const { sessions, currentSessionId, createSession, deleteSession, setCurrentSession } = useChatStore();
@@ -93,74 +95,103 @@ export default function ChatsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <Animated.View 
-        style={[
-          styles.headerContainer,
-          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
-        ]}
-      >
-        <Text style={styles.subtitle}>
-          View and continue your financial conversations
-        </Text>
-        <Button
-          title="New Chat"
-          onPress={handleCreateSession}
-          leftIcon={<MessageSquarePlus size={18} color={colors.white} />}
-          style={styles.newChatButton}
-        />
-      </Animated.View>
-      
-      <Animated.View 
-        style={[
-          styles.listContainer,
-          { opacity: fadeAnim }
-        ]}
-      >
-        <FlatList
-          data={sessions}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <SessionCard
-              session={item}
-              isActive={item.id === currentSessionId}
-              onPress={() => handleSelectSession(item.id)}
-              onDelete={() => handleDeleteSession(item.id)}
-            />
-          )}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={renderEmptyState}
-          showsVerticalScrollIndicator={false}
-        />
-      </Animated.View>
-    </SafeAreaView>
-  );
+        <View style={styles.container}>
+    <ImageBackground 
+      source={require('@/assets/images/image.png')} 
+      style={styles.backgroundImage}
+    >
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <Animated.View 
+          style={[
+            styles.headerContainer,
+            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+          ]}
+        >
+         
+            <Text style={[styles.subtitle, { color: 'white' }]}>
+            Explore past conversations
+            </Text>
+            <Text style={[styles.subtitleSmall, { color: 'gray' }]}>
+            Pick up where you left off with your AI financial assistant
+            </Text>
+          <Button
+            title="New Chat"
+            onPress={handleCreateSession}
+            leftIcon={<MessageSquarePlus size={18} color={colors.white} />}
+            style={styles.newChatButton}
+          />
+        </Animated.View>
+        
+        <Animated.View 
+          style={[
+            styles.listContainer,
+            { opacity: fadeAnim }
+          ]}
+        >
+          <FlatList
+            data={sessions}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <SessionCard
+                session={item}
+                isActive={item.id === currentSessionId}
+                onPress={() => handleSelectSession(item.id)}
+                onDelete={() => handleDeleteSession(item.id)}
+              />
+            )}
+            contentContainerStyle={styles.listContent}
+            ListEmptyComponent={renderEmptyState}
+            showsVerticalScrollIndicator={false}
+          />
+        </Animated.View>
+      </SafeAreaView>
+    </ImageBackground>
+  </View>
+);
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  headerContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    marginBottom: 16,
-  },
-  newChatButton: {
-    alignSelf: 'flex-start',
-  },
-  listContainer: {
-    flex: 1,
-  },
-  listContent: {
-    padding: 20,
-    flexGrow: 1,
-  },
+backgroundImage: {
+  flex: 1,
+  width: '100%',
+  height: '100%',
+},
+container: {
+  flex: 1,
+},
+headerContainer: {
+  marginTop: 20,
+  paddingHorizontal: 20,
+  paddingVertical: 16,
+  borderBottomWidth: 1,
+
+},
+gradientContainer: {
+  marginTop: 40,
+  marginBottom: 16,
+},
+subtitle: {
+  marginTop: 60,
+  fontSize: 29,
+  color: 'white',
+  bottom: 20,
+  fontWeight: '500',
+
+},
+subtitleSmall: {
+  marginTop: 10,
+  color: 'gray',
+  bottom: 20,
+},
+
+newChatButton: {
+  alignSelf: 'flex-start',
+},
+listContainer: {
+  flex: 1,
+},
+listContent: {
+  padding: 20,
+  flexGrow: 1,
+},
 });

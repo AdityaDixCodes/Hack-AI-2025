@@ -8,6 +8,7 @@ import {
   Animated,
   ActivityIndicator,
   Platform,
+  Dimensions,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import axios from 'axios'
@@ -49,9 +50,23 @@ interface InsightsData {
   revenueBreakdown: RevenueSegment[];
 }
 
+// Chart colors for better visibility
+const chartColors = [
+  '#4CAF50', // Green
+  '#2196F3', // Blue
+  '#FFC107', // Amber
+  '#9C27B0', // Purple
+  '#F44336', // Red
+  '#FF9800', // Orange
+  '#00BCD4', // Cyan
+  '#795548', // Brown
+];
+
 const API_BASE_URL = Platform.OS === 'ios' 
   ? 'http://127.0.0.1:8000'
   : 'http://10.0.2.2:8000';
+
+const screenWidth = Dimensions.get('window').width;
 
 export default function InsightsScreen() {
   const [indexed, setIndexed] = useState<boolean | null>(null);
@@ -232,26 +247,36 @@ export default function InsightsScreen() {
   const renderRevenueBreakdown = () => {
     if (!data.revenueBreakdown?.length) return null;
 
+    const chartData = data.revenueBreakdown.map((segment, index) => ({
+      name: segment.segment,
+      population: segment.percentage,
+      color: chartColors[index % chartColors.length],
+      legendFontColor: colors.text,
+      legendFontSize: 12,
+    }));
+
     return (
       <Card style={styles.chartCard}>
         <Text style={styles.chartTitle}>Revenue Breakdown</Text>
         <PieChart
-          data={data.revenueBreakdown.map(segment => ({
-            name: segment.segment,
-            population: segment.percentage,
-            color: ["#4CAF50", "#2196F3", "#FFC107", "#9C27B0", "#F44336"][data.revenueBreakdown.indexOf(segment)],
-            legendFontColor: colors.text,
-            legendFontSize: 12
-          }))}
-          width={300}
-          height={250}
+          data={chartData}
+          width={screenWidth - 64} // Responsive width
+          height={220}
           chartConfig={{
-            color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+            backgroundColor: colors.cardBackground,
+            backgroundGradientFrom: colors.cardBackground,
+            backgroundGradientTo: colors.cardBackground,
+            color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+            labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+            style: {
+              borderRadius: 16,
+            },
           }}
           accessor="population"
           backgroundColor="transparent"
           paddingLeft="15"
           absolute
+          hasLegend={false} // We'll render our own legend for better control
         />
         <View style={styles.legendContainer}>
           {data.revenueBreakdown.map((segment, index) => (
@@ -259,7 +284,7 @@ export default function InsightsScreen() {
               <View 
                 style={[
                   styles.legendColor, 
-                  { backgroundColor: ["#4CAF50", "#2196F3", "#FFC107", "#9C27B0", "#F44336"][index] }
+                  { backgroundColor: chartColors[index % chartColors.length] }
                 ]} 
               />
               <Text style={styles.legendText}>
@@ -381,16 +406,16 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   pageTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
     color: colors.text,
     marginBottom: 24,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: 32,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
     color: colors.text,
     marginBottom: 16,
@@ -399,11 +424,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    gap: 16,
   },
   metricCard: {
-    width: '48%',
+    width: '47%',
     padding: 16,
-    marginBottom: 16,
+    backgroundColor: colors.cardBackground,
+    borderColor: colors.cardBorder,
   },
   metricHeader: {
     flexDirection: 'row',
@@ -423,20 +450,22 @@ const styles = StyleSheet.create({
   },
   chartCard: {
     padding: 16,
+    backgroundColor: colors.cardBackground,
+    borderColor: colors.cardBorder,
   },
   chartTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: colors.text,
     marginBottom: 16,
   },
   legendContainer: {
-    marginTop: 16,
+    marginTop: 24,
+    gap: 12,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
   },
   legendColor: {
     width: 12,
@@ -453,6 +482,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,
+    marginLeft: 8,
   },
   metricSubValue: {
     fontSize: 12,
