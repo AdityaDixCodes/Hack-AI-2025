@@ -1,7 +1,11 @@
 # backend/app.py
 # Required packages:
-#   pip install fastapi uvicorn[standard] python-multipart pymupdf \
-#               langchain-community langchain-openai faiss-cpu python-dotenv tiktoken sentence-transformers
+# KaushikS@MacBook-Pro-2 Hack-AI-2025 % python3 -m venv venv
+# KaushikS@MacBook-Pro-2 Hack-AI-2025 % source venv/bin/activate
+# (venv) KaushikS@MacBook-Pro-2 Hack-AI-2025 % pip install --upgrade pip
+#   pip install fastapi uvicorn python-multipart pymupdf langchain-community faiss-cpu python-dotenv tiktoken sentence-transformers
+# also add .env file with api keys
+#    uvicorn backend.app:app --reload --port 8000
 
 from dotenv import load_dotenv
 load_dotenv()
