@@ -18,6 +18,7 @@ import { EmptyState } from '@/components/EmptyState'
 import { BookOpen, TrendingUp, DollarSign, PieChart as PieChartIcon, AlertCircle } from 'lucide-react-native'
 import { router } from 'expo-router'
 import { PieChart } from 'react-native-chart-kit'
+import { useDocumentStore } from '@/store/document-store'
 
 // Types for our API responses
 interface KeyMetrics {
@@ -55,7 +56,7 @@ const API_BASE_URL = Platform.OS === 'ios'
   : 'http://10.0.2.2:8000';
 
 export default function InsightsScreen() {
-  const [indexed, setIndexed] = useState<boolean | null>(null);
+  const { isDocumentUploaded } = useDocumentStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<InsightsData>({
@@ -65,39 +66,10 @@ export default function InsightsScreen() {
   });
 
   useEffect(() => {
-    let mounted = true;
-
-    const init = async () => {
-      if (mounted) {
-        await checkStatus();
-      }
-    };
-
-    init();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const checkStatus = async () => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/status`);
-      console.log('Status check response:', response.data);
-      setIndexed(response.data.indexed);
-      if (response.data.indexed) {
-        console.log('PDF is indexed, fetching insights...');
-        fetchInsightsData();
-      } else {
-        console.log('No PDF indexed yet');
-        setError('Please upload a PDF report first');
-      }
-    } catch (err) {
-      console.error('Status check failed:', err);
-      setError('Failed to check PDF status');
-      setIndexed(false);
+    if (isDocumentUploaded) {
+      fetchInsightsData();
     }
-  };
+  }, [isDocumentUploaded]);
 
   const fetchInsightsData = async () => {
     setLoading(true);
@@ -274,7 +246,7 @@ export default function InsightsScreen() {
     );
   };
 
-  if (indexed === null || loading) {
+  if (loading) {
     return (
       <ImageBackground 
         source={require('@/assets/images/image.png')} 
@@ -283,16 +255,14 @@ export default function InsightsScreen() {
         <SafeAreaView style={styles.container}>
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingText}>
-              {indexed === null ? 'Checking status...' : 'Loading insights...'}
-            </Text>
+            <Text style={styles.loadingText}>Loading insights...</Text>
           </View>
         </SafeAreaView>
       </ImageBackground>
     );
   }
 
-  if (!indexed) {
+  if (!isDocumentUploaded) {
     return (
       <ImageBackground 
         source={require('@/assets/images/image.png')} 
@@ -300,8 +270,8 @@ export default function InsightsScreen() {
       >
         <SafeAreaView style={styles.container}>
           <EmptyState
-            title="No Report Available"
-            description="Upload a financial report to see insights and analysis."
+            title="No Document Available"
+            description="Upload a financial report to see insights."
             icon={<BookOpen size={48} color={colors.primary} />}
             actionLabel="Upload Report"
             onAction={() => router.push('/')}

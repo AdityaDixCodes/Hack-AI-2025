@@ -9,6 +9,7 @@ import {
   Platform,
   Dimensions,
   ImageBackground,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -24,19 +25,27 @@ import {
   FileText, 
   PieChart, 
   ArrowRight, 
-  ChevronRight 
+  ChevronRight,
+  BookOpen
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Defs, RadialGradient, Stop } from 'react-native-svg';
+import { useDocumentStore } from '@/store/document-store';
+import axios from 'axios';
 
 const { width, height } = Dimensions.get('window');
+
+const API_BASE_URL = Platform.OS === 'ios' 
+  ? 'http://127.0.0.1:8000'
+  : 'http://10.0.2.2:8000';
 
 // Background Gradient Component
 
 export default function HomeScreen() {
   const { createSession } = useChatStore();
   const { profile } = useUserStore();
+  const { setDocumentUploaded } = useDocumentStore();
   const [file, setFile] = useState<any>(null);
   
   // Animation values
@@ -80,14 +89,32 @@ export default function HomeScreen() {
     setFile(selectedFile);
   };
   
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
     
     if (file) {
-      const sessionId = createSession(file.name);
-      router.push(`/chat/${sessionId}`);
+      try {
+        // Upload the file
+        const formData = new FormData();
+        formData.append('file', file);
+        await axios.post(`${API_BASE_URL}/upload`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        
+        // Set document as uploaded
+        setDocumentUploaded(true);
+        
+        // Create chat session and navigate
+        const sessionId = createSession(file.name);
+        router.push(`/chat/${sessionId}`);
+      } catch (error) {
+        console.error('Upload failed:', error);
+        Alert.alert('Upload Failed', 'Failed to upload the document. Please try again.');
+      }
     }
   };
   
@@ -175,7 +202,10 @@ export default function HomeScreen() {
                 </Text>
               </Card>
               
-              <Card style={styles.featureCard}>
+              <Card 
+                style={styles.featureCard}
+                onPress={() => router.push('/insights')}
+              >
                 <View style={[styles.iconContainer, { backgroundColor: 'rgba(138, 43, 226, 0.15)' }]}>
                   <PieChart size={24} color={colors.secondary} />
                 </View>
@@ -195,9 +225,12 @@ export default function HomeScreen() {
                 </Text>
               </Card>
 
-              <Card style={styles.featureCard}>
+              <Card 
+                style={styles.featureCard}
+                onPress={() => router.push('/quiz')}
+              >
                 <View style={[styles.iconContainer, { backgroundColor: 'rgba(138, 43, 226, 0.15)' }]}>
-                  <TrendingUp size={24} color={colors.secondary} />
+                  <BookOpen size={24} color={colors.secondary} />
                 </View>
                 <Text style={styles.featureTitle}>Mini Quiz</Text>
                 <Text style={styles.featureDescription}>

@@ -10,7 +10,6 @@
 
 from dotenv import load_dotenv
 load_dotenv()
-
 import os
 import traceback
 import logging
@@ -28,6 +27,8 @@ from langchain_community.vectorstores import FAISS
 from langchain_openai import ChatOpenAI
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
+
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Logging setup
@@ -62,6 +63,7 @@ app.add_middleware(
 # ─────────────────────────────────────────────────────────────────────────────
 vectorstore: FAISS = None
 qa_chain: RetrievalQA = None
+quiz_data: dict = None  # Will store the current quiz questions and answers
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -246,6 +248,25 @@ class RecommendationData(BaseModel):
     key_points: List[str]
     risks: List[str]
     outlook: str
+
+class QuizQuestion(BaseModel):
+    id: int
+    question: str
+    choices: dict[str, str]
+    correct_answer: str
+
+class QuizResponse(BaseModel):
+    questions: List[QuizQuestion]
+
+class QuizSubmission(BaseModel):
+    question_id: int
+    selected_answer: str
+
+class QuizResult(BaseModel):
+    question_id: int
+    is_correct: bool
+    correct_answer: str
+    explanation: str
 
 @app.get("/timeseries", response_model=TimeSeriesData)
 def get_timeseries():
@@ -558,6 +579,190 @@ def get_recommendations():
     except Exception as e:
         logger.error("Error generating recommendations: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/generate-quiz", response_model=QuizResponse)
+def generate_quiz():
+    """Generate a multiple choice quiz based on the uploaded financial document"""
+    global quiz_data
+    
+    if qa_chain is None:
+        raise HTTPException(status_code=400, detail="No report indexed yet.")
+
+    PROMPT = """You are a financial quiz generator. Your task is to create a quiz based on the provided financial document.
+
+    IMPORTANT: You MUST return a JSON object with EXACTLY this structure:
+    {
+        "questions": [
+            {
+                "id": 1,
+                "question": "What was the company's total revenue in FY2024?",
+                "choices": {
+                    "A": "INR 355,170 Million",
+                    "B": "INR 325,170 Million",
+                    "C": "INR 375,170 Million",
+                    "D": "INR 345,170 Million"
+                },
+                "correct_answer": "A"
+            }
+        ]
+    }
+
+    Rules for generating questions:
+    1. Generate EXACTLY 10 questions
+    2. Each question MUST be based on FACTUAL information from the document
+    3. Each question MUST have EXACTLY 4 choices labeled A, B, C, D
+    4. The correct_answer MUST be one of: A, B, C, or D
+    5. Do NOT include any explanatory text, ONLY the JSON object
+    6. For numerical questions, use the exact numbers from the document
+    7. Make choices realistic and distinct from each other
+
+    Include questions about:
+    - Financial metrics (revenue, profit, growth rates)
+    - Business segments and performance
+    - Key company highlights
+    - Strategic objectives
+    - Risk factors
+    - Market position
+    - Operational performance
+
+    REMEMBER: Return ONLY the JSON object, no additional text or formatting."""
+
+    try:
+        # Use invoke instead of __call__
+        result = qa_chain.invoke({"query": PROMPT})
+        raw_response = result["result"].strip()
+        
+        # Log the raw response for debugging
+        logger.info(f"Raw quiz generation response: {raw_response}")
+        
+        # Clean up the response
+        if "```json" in raw_response:
+            raw_response = raw_response.split("```json")[1].split("```")[0].strip()
+        elif "```" in raw_response:
+            raw_response = raw_response.split("```")[1].strip()
+        
+        try:
+            quiz_data = json.loads(raw_response)
+        except json.JSONDecodeError as je:
+            logger.error(f"JSON decode error: {je}\nRaw response: {raw_response}")
+            raise ValueError(f"Failed to parse JSON response: {je}")
+
+        # Validate structure
+        if not isinstance(quiz_data, dict):
+            raise ValueError("Response is not a JSON object")
+            
+        if "questions" not in quiz_data:
+            raise ValueError("Response missing 'questions' array")
+            
+        questions = quiz_data["questions"]
+        if not isinstance(questions, list):
+            raise ValueError("'questions' is not an array")
+            
+        if len(questions) != 10:
+            raise ValueError(f"Expected 10 questions, got {len(questions)}")
+            
+        # Validate each question
+        for i, q in enumerate(questions):
+            required_fields = ["id", "question", "choices", "correct_answer"]
+            missing_fields = [f for f in required_fields if f not in q]
+            if missing_fields:
+                raise ValueError(f"Question {i+1} missing fields: {', '.join(missing_fields)}")
+                
+            if not isinstance(q["choices"], dict):
+                raise ValueError(f"Question {i+1}: 'choices' must be an object")
+                
+            if len(q["choices"]) != 4:
+                raise ValueError(f"Question {i+1} must have exactly 4 choices")
+                
+            missing_choices = [c for c in ["A", "B", "C", "D"] if c not in q["choices"]]
+            if missing_choices:
+                raise ValueError(f"Question {i+1} missing choices: {', '.join(missing_choices)}")
+                
+            if q["correct_answer"] not in ["A", "B", "C", "D"]:
+                raise ValueError(f"Question {i+1} has invalid correct_answer: {q['correct_answer']}")
+        
+        logger.info("Successfully generated and validated quiz with 10 questions")
+        return quiz_data
+        
+    except ValueError as ve:
+        logger.error(f"Validation error: {str(ve)}")
+        raise HTTPException(status_code=500, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error generating quiz: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to generate quiz: {str(e)}")
+
+@app.post("/check-answer", response_model=QuizResult)
+def check_answer(submission: QuizSubmission):
+    """Check if the submitted answer is correct and provide a short explanation"""
+    if qa_chain is None:
+        raise HTTPException(status_code=400, detail="No report indexed yet.")
+        
+    if quiz_data is None:
+        raise HTTPException(status_code=400, detail="No quiz has been generated yet")
+
+    # Find the question in our stored quiz data
+    question = None
+    for q in quiz_data["questions"]:
+        if q["id"] == submission.question_id:
+            question = q
+            break
+    
+    if question is None:
+        raise HTTPException(status_code=404, detail=f"Question {submission.question_id} not found")
+
+    # Now we can check the answer directly
+    is_correct = submission.selected_answer == question["correct_answer"]
+    
+    # Get explanation from LLM
+    PROMPT = f"""Based on the financial document, explain why this answer is {'' if is_correct else 'in'}correct:
+
+Question: {question['question']}
+Correct answer: {question['correct_answer']} - {question['choices'][question['correct_answer']]}
+User's answer: {submission.selected_answer} - {question['choices'][submission.selected_answer]}
+
+Return ONLY a JSON object in this exact format:
+{{
+    "question_id": {submission.question_id},
+    "is_correct": {str(is_correct).lower()},
+    "correct_answer": "{question['correct_answer']}",
+    "explanation": "Your explanation here..."
+}}"""
+    
+    try:
+        # Use invoke instead of __call__
+        result = qa_chain.invoke({"query": PROMPT})
+        raw_response = result["result"].strip()
+        
+        if "```json" in raw_response:
+            raw_response = raw_response.split("```json")[1].split("```")[0].strip()
+        elif "```" in raw_response:
+            raw_response = raw_response.split("```")[1].strip()
+
+        try:
+            answer_data = json.loads(raw_response)
+            
+            # Override with known correct values
+            answer_data["question_id"] = submission.question_id
+            answer_data["is_correct"] = is_correct
+            answer_data["correct_answer"] = question["correct_answer"]
+            
+            return QuizResult(**answer_data)
+            
+        except json.JSONDecodeError:
+            # If we can't get a proper explanation, return a basic one
+            return QuizResult(
+                question_id=submission.question_id,
+                is_correct=is_correct,
+                correct_answer=question["correct_answer"],
+                explanation=f"The correct answer is {question['correct_answer']}: {question['choices'][question['correct_answer']]}"
+            )
+            
+    except Exception as e:
+        logger.error(f"Error checking answer: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to check answer: {str(e)}"
+        )
 
 # ─────────────────────────────────────────────────────────────────────────────
 # To run:

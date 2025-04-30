@@ -4,7 +4,8 @@ import { Platform, StyleSheet, View, StatusBar, Dimensions } from "react-native"
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
 import { colors } from "@/constants/colors";
-import { Home, MessageSquare, Settings, PieChart } from "lucide-react-native";
+import { Home, MessageSquare, Settings, PieChart, BookOpen } from "lucide-react-native";
+import { router } from "expo-router";
 
 const { width } = Dimensions.get('window');
 
@@ -79,7 +80,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: "Home",
+            title: '',
             tabBarIcon: ({ color }) => <Home size={22} color={color} />,
             headerTitle: "PiFi",
           }}
@@ -87,7 +88,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="chats"
           options={{
-            title: "Chats",
+            title: '',
             tabBarIcon: ({ color }) => <MessageSquare size={22} color={color} />,
             headerTitle: "Your Chats",
           }}
@@ -95,7 +96,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="insights"
           options={{
-            title: "Insights",
+            title: '',
             tabBarIcon: ({ color }) => <PieChart size={22} color={color} />,
             headerTitle: "Financial Insights",
           }}
@@ -103,9 +104,18 @@ export default function TabLayout() {
         <Tabs.Screen
           name="settings"
           options={{
-            title: "Settings",
+            title: '',
             tabBarIcon: ({ color }) => <Settings size={22} color={color} />,
             headerTitle: "Settings",
+          }}
+        />
+        <Tabs.Screen
+          name="quiz"
+          options={{
+            title: '',
+            tabBarIcon: ({ color }) => <BookOpen size={24} color={color} />,
+            headerTitle: "Financial Quiz",
+            href: null,
           }}
         />
       </Tabs>
