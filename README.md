@@ -1,5 +1,5 @@
 
-# 📊 FinSight (PiFi) – Your AI Financial Coach
+# 📊 FinSight – Your AI Financial Coach
 
 FinSight, is a conversational AI platform that transforms complex company financial documents (like 10-Ks, annual reports, and balance sheets) into clear, interactive insights. Built for investors, students, and analysts, FinSight personalizes your experience through a fun onboarding quiz and delivers everything from KPIs to educational mini-quizzes — all within a sleek mobile interface.
 
